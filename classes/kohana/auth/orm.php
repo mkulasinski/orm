@@ -83,7 +83,8 @@ class Kohana_Auth_ORM extends Auth {
 		}
 
 		// If the passwords match, perform a login
-		if ($user->has('roles', ORM::factory('role', array('name' => 'login'))) AND $user->password === $password)
+		//$user->has('roles', ORM::factory('role', array('name' => 'login'))) AND
+		if ( $user->password === $password)
 		{
 			if ($remember === TRUE)
 			{
@@ -209,23 +210,38 @@ class Kohana_Auth_ORM extends Auth {
 		// Set by force_login()
 		$this->_session->delete('auth_forced');
 
-		if ($token = Cookie::get('authautologin'))
+		if ($tokenId = Cookie::get('authautologin'))
 		{
 			// Delete the autologin cookie to prevent re-login
 			Cookie::delete('authautologin');
 
 			// Clear the autologin token from the database
-			$token = ORM::factory('user_token', array('token' => $token));
-
-			if ($token->loaded() AND $logout_all)
-			{
-				ORM::factory('user_token')->where('user_id', '=', $token->user_id)->delete_all();
+			$token = ORM::factory('user_token', array('token' => $tokenId));
+			
+			if ($token->loaded() && $logout_all)
+			{	
+				$userId = $token->user_id;
+				$userAgent = $token->user_agent;
+				
+				$token->delete();
+				
+				$token = ORM::factory('user_token');
+								
+				$token->where('user_id', '=', $userId);
+				$token->where('user_agent', '=', $userAgent);
+				
+				$tokens = $token->find_all();
+				
+				foreach($tokens as $token){
+					if($token->loaded())
+						$token->delete();
+				}				
 			}
 			elseif ($token->loaded())
 			{
 				$token->delete();
 			}
-		}
+		}	
 
 		return parent::logout($destroy);
 	}
